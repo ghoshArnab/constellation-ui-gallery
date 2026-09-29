@@ -7,15 +7,20 @@ import {
   StyledProgressBar,
   StyledProgressFill,
   StyledProgressHeader,
-  StyledProgressLegend,
-  StyledProgressMarker,
-  StyledProgressMarkers,
+  StyledProgressFraction,
   StyledProgressRail,
   StyledProgressStatus,
   StyledProgressTrack,
   StyledProgressValue,
 } from './styles';
-import { getPercentage, getProgressStatus, isProgressTone, normalizeProgress, type ProgressSize, type ProgressTone } from './utils';
+import {
+  getPercentage,
+  getProgressStatus,
+  isProgressTone,
+  normalizeProgress,
+  type ProgressSize,
+  type ProgressTone,
+} from './utils';
 
 export interface PegaExtensionsProgressBarProps {
   /** Widget label. */
@@ -42,8 +47,8 @@ export interface PegaExtensionsProgressBarProps {
   size?: ProgressSize;
   /** Shows the percentage or in-progress label. */
   showValue?: boolean;
-  /** Shows milestone markers at 25%, 50%, and 75%. */
-  showMarkers?: boolean;
+  /** Shows the completed fraction below the progress bar. */
+  showFraction?: boolean;
   getPConnect: () => typeof PConnect;
 }
 
@@ -61,7 +66,7 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
     tone = 'accent',
     size = 'regular',
     showValue = true,
-    showMarkers = true,
+    showFraction = true,
     getPConnect,
   } = props;
 
@@ -120,12 +125,14 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
   const normalizedMax = Number.isFinite(max) && (max as number) > normalizedMin ? (max as number) : normalizedMin + 100;
   const normalizedValue = normalizeProgress(value ?? normalizedMin, normalizedMin, normalizedMax);
   const percentage = getPercentage(normalizedValue, normalizedMin, normalizedMax);
+  const completedValue = normalizedValue - normalizedMin;
+  const totalValue = normalizedMax - normalizedMin;
   const progressText = percentage === 100 ? localize('Complete') : `${percentage}%`;
+  const fractionText = `${completedValue} ${localize('of')} ${totalValue} ${localize('completed')}`;
   const statusText = localize(getProgressStatus(percentage, effectiveTone));
   const ariaValueText = indeterminate ? localize('In progress') : `${percentage}% ${localize('complete')}`;
   const progressId = `${id}-progress`;
   const helperId = `${id}-helper`;
-  const markers = [25, 50, 75];
 
   return (
     <StyledProgressBar data-testid={testId}>
@@ -159,24 +166,8 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
             $percentage={percentage}
             $tone={effectiveTone}
           />
-          {showMarkers && !indeterminate && (
-            <StyledProgressMarkers aria-hidden='true'>
-              {markers.map((marker) => (
-                <StyledProgressMarker
-                  key={marker}
-                  $active={percentage >= marker}
-                  data-testid={testId ? `${testId}:marker:${marker}` : undefined}
-                  style={{ left: `${marker}%` }}
-                />
-              ))}
-            </StyledProgressMarkers>
-          )}
         </StyledProgressTrack>
-        {showMarkers && !indeterminate && (
-          <StyledProgressLegend aria-hidden='true'>
-            <span>{localize('Complete')}</span>
-          </StyledProgressLegend>
-        )}
+        {showFraction && !indeterminate && <StyledProgressFraction>{fractionText}</StyledProgressFraction>}
       </StyledProgressRail>
     </StyledProgressBar>
   );

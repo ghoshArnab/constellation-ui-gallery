@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
 
-import { configProps, rapidProgressSteps, mockCompleteDataPageResponse } from './mock';
+import { configProps, createProgressDataPageResponse, rapidProgressSteps } from './mock';
 import { PegaExtensionsProgressBar, type PegaExtensionsProgressBarProps } from './index';
 
 type StoryArgs = Omit<PegaExtensionsProgressBarProps, 'getPConnect'>;
@@ -31,46 +31,194 @@ const stubPCore = (getData: () => Promise<unknown>) => {
   } as unknown as typeof PCore;
 };
 
-/* Simulates the messaging service pushing a rapid succession of progress updates, roughly once a second */
-const stubPCoreWithRapidUpdates = (steps: number[], intervalMs = 1000) => {
+type ProgressFilter = {
+  matcher: string;
+  criteria: Record<string, string>;
+};
+
+type ProgressSubscription = {
+  filter: ProgressFilter;
+  handler: () => void;
+};
+
+/* Simulates a backend socket updating the data page before notifying the messaging service. */
+const stubPCoreWithRapidUpdates = (steps: number[], args: StoryArgs, intervalMs = 1000) => {
   let step = 0;
+  let nextSubscriptionId = 0;
+  let socketIntervalId: number | undefined;
+  const subscriptions = new Map<string, ProgressSubscription>();
+
+  const routeSocketMessage = () => {
+    const socketMessage = {
+      filter: {
+        matcher: 'CASE',
+        criteria: { caseId: 'WORK-1' },
+      },
+      message: {
+        datapage: 'D_ExportJobProgress',
+      },
+    };
+
+    subscriptions.forEach(({ filter, handler }) => {
+      if (
+        filter.matcher === socketMessage.filter.matcher &&
+        filter.criteria.caseId === socketMessage.filter.criteria.caseId
+      ) {
+        handler();
+      }
+    });
+  };
+
+  const startSocket = () => {
+    socketIntervalId = window.setInterval(() => {
+      if (step < steps.length - 1) step += 1;
+      routeSocketMessage();
+    }, intervalMs);
+  };
+
+  const stopSocket = () => {
+    if (socketIntervalId !== undefined) {
+      window.clearInterval(socketIntervalId);
+      socketIntervalId = undefined;
+    }
+  };
+
   window.PCore = {
     getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
     getDataApiUtils: () => ({
-      getData: () => Promise.resolve({ data: { data: [{ Value: steps[step], Max: 100 }] } }),
+      getData: () => Promise.resolve(createProgressDataPageResponse(args, steps[step], 0, 100)),
     }),
     getMessagingServiceManager: () => ({
-      subscribe: (_filter: unknown, handler: () => void) => {
-        const intervalId = window.setInterval(() => {
-          if (step < steps.length - 1) step += 1;
-          handler();
-        }, intervalMs);
-        return String(intervalId);
+      subscribe: (filter: ProgressFilter, handler: () => void) => {
+        const subscriptionId = `subscription-${nextSubscriptionId++}`;
+        subscriptions.set(subscriptionId, { filter, handler });
+        if (subscriptions.size === 1) startSocket();
+        return subscriptionId;
       },
-      unsubscribe: (subscriptionId: string) => window.clearInterval(Number(subscriptionId)),
+      unsubscribe: (subscriptionId: string) => {
+        subscriptions.delete(subscriptionId);
+        if (subscriptions.size === 0) stopSocket();
+      },
     }),
   } as unknown as typeof PCore;
 };
 
 const StoryComponent = (args: StoryArgs) => {
-  stubPCoreWithRapidUpdates(rapidProgressSteps);
+  stubPCoreWithRapidUpdates(rapidProgressSteps, args);
   return renderProgressBar(args);
 };
 
 const meta = {
   title: 'Widgets/Progress Bar',
   component: StoryComponent,
+  args: {
+    indeterminateOnly: false,
+  },
   argTypes: {
+    label: {
+      control: {
+        type: 'text',
+      },
+    },
+    indeterminateOnly: {
+      control: {
+        type: 'boolean',
+      },
+    },
+    dataPage: {
+      control: {
+        type: 'text',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    valueProperty: {
+      control: {
+        type: 'text',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    minProperty: {
+      control: {
+        type: 'text',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    maxProperty: {
+      control: {
+        type: 'text',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    toneProperty: {
+      control: {
+        type: 'text',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    helperText: {
+      control: {
+        type: 'text',
+      },
+    },
+    testId: {
+      control: {
+        type: 'text',
+      },
+    },
     tone: {
       options: ['accent', 'success', 'warning', 'danger'],
+      labels: {
+        accent: 'Accent',
+        success: 'Success',
+        warning: 'Warning',
+        danger: 'Danger',
+      },
       control: {
         type: 'select',
       },
     },
     size: {
       options: ['compact', 'regular', 'large'],
+      labels: {
+        compact: 'Compact',
+        regular: 'Regular',
+        large: 'Large',
+      },
       control: {
         type: 'inline-radio',
+      },
+    },
+    showValue: {
+      control: {
+        type: 'boolean',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    showFraction: {
+      control: {
+        type: 'boolean',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
       },
     },
   },
@@ -82,7 +230,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: (args) => {
-    stubPCoreWithRapidUpdates(rapidProgressSteps);
+    stubPCoreWithRapidUpdates(rapidProgressSteps, args);
     return renderProgressBar(args);
   },
   args: configProps,
@@ -90,7 +238,7 @@ export const Default: Story = {
 
 export const Complete: Story = {
   render: (args) => {
-    stubPCore(() => Promise.resolve(mockCompleteDataPageResponse));
+    stubPCore(() => Promise.resolve(createProgressDataPageResponse(args, 100, 0, 100)));
     return renderProgressBar(args);
   },
   args: {
@@ -103,13 +251,17 @@ export const Complete: Story = {
 
 export const AtRisk: Story = {
   render: (args) => {
-    stubPCore(() => Promise.resolve({ data: { data: [{ Value: 42, Max: 100 }] } }));
+    stubPCore(() => Promise.resolve(createProgressDataPageResponse(args, 42, 20, 100, 'warning')));
     return renderProgressBar(args);
   },
   args: {
     ...configProps,
     label: 'Sync job progress',
-    tone: 'warning',
+    valueProperty: 'Completed',
+    minProperty: 'StartedAt',
+    maxProperty: 'Total',
+    toneProperty: 'Status',
+    tone: 'accent',
     size: 'large',
     helperText: 'Updates have slowed; the sync job may be stalled.',
   },

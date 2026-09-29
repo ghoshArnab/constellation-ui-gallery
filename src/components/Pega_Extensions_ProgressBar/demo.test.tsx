@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { composeStories } from '@storybook/react-webpack5';
 import '@testing-library/jest-dom';
 
@@ -15,7 +15,35 @@ test('loads its first value from the data page and renders accessible values', a
   expect(progress).toHaveAttribute('aria-valuemax', '100');
   expect(screen.getByText('12%')).toBeVisible();
   expect(screen.getByText('On track')).toBeVisible();
-  expect(screen.getByTestId('ProgressBar-12345678:marker:50')).toBeInTheDocument();
+  expect(screen.getByText('12 of 100 completed')).toBeVisible();
+});
+
+test('refreshes the data page after a socket message reaches the messaging service', async () => {
+  jest.useFakeTimers();
+  try {
+    render(<Default />);
+
+    const progress = await screen.findByRole('progressbar', { name: 'Export job progress' });
+    expect(await screen.findByText('12%')).toBeVisible();
+    expect(progress).toHaveAttribute('aria-valuenow', '12');
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(progress).toHaveAttribute('aria-valuenow', '27');
+    expect(screen.getByText('27%')).toBeVisible();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('can hide the completed fraction', async () => {
+  render(<Default showFraction={false} />);
+
+  await screen.findByRole('progressbar', { name: 'Export job progress' });
+  expect(await screen.findByText('12%')).toBeVisible();
+  expect(screen.queryByText('12 of 100 completed')).not.toBeInTheDocument();
 });
 
 test('renders completion state', async () => {
@@ -24,14 +52,17 @@ test('renders completion state', async () => {
   const progress = await screen.findByRole('progressbar', { name: 'Backup job progress' });
   expect(progress).toHaveAttribute('aria-valuenow', '100');
   expect(progress).toHaveAttribute('aria-valuetext', '100% complete');
-  expect(screen.getAllByText('Complete').length).toBeGreaterThan(0);
+  expect(screen.getByText('100 of 100 completed')).toBeVisible();
 });
 
 test('renders an at-risk state', async () => {
   render(<AtRisk />);
 
   const progress = await screen.findByRole('progressbar', { name: 'Sync job progress' });
+  expect(progress).toHaveAttribute('aria-valuemin', '20');
+  expect(progress).toHaveAttribute('aria-valuemax', '100');
   expect(progress).toHaveAttribute('aria-valuenow', '42');
+  expect(screen.getByText('22 of 80 completed')).toBeVisible();
   expect(screen.getByText('In review')).toBeVisible();
 });
 
@@ -41,7 +72,7 @@ test('stays indeterminate until the data page resolves', () => {
   const progress = screen.getByRole('progressbar', { name: 'Import job progress' });
   expect(progress).not.toHaveAttribute('aria-valuenow');
   expect(progress).toHaveAttribute('aria-valuetext', 'In progress');
-  expect(screen.queryByTestId('ProgressBar-12345678:marker:50')).not.toBeInTheDocument();
+  expect(screen.queryByText(/completed/)).not.toBeInTheDocument();
 });
 
 test('runs continuously with no data page or PCore involved', () => {
@@ -73,9 +104,7 @@ test('offsets progress from a non-zero minimum reported by the data page', async
       getContextName: () => 'primary',
     }) as unknown as typeof PConnect;
 
-  render(
-    <PegaExtensionsProgressBar label='Gauge progress' dataPage='D_GaugeProgress' getPConnect={getPConnect} />,
-  );
+  render(<PegaExtensionsProgressBar label='Gauge progress' dataPage='D_GaugeProgress' getPConnect={getPConnect} />);
 
   const progress = await screen.findByRole('progressbar', { name: 'Gauge progress' });
   expect(progress).toHaveAttribute('aria-valuemin', '20');

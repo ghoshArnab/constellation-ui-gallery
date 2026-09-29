@@ -162,18 +162,7 @@ export const StyledProgressTrack = styled.div<{ $size: ProgressSize }>(({ theme,
 
 StyledProgressTrack.defaultProps = defaultThemeProp;
 
-export const StyledProgressMarkers = styled.div(() => {
-  return css`
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-  `;
-});
-
-StyledProgressMarkers.defaultProps = defaultThemeProp;
-
-export const StyledProgressLegend = styled.div(({ theme }) => {
+export const StyledProgressFraction = styled.div(({ theme }) => {
   return css`
     display: flex;
     justify-content: flex-end;
@@ -183,20 +172,7 @@ export const StyledProgressLegend = styled.div(({ theme }) => {
   `;
 });
 
-StyledProgressLegend.defaultProps = defaultThemeProp;
-
-export const StyledProgressMarker = styled.span<{ $active: boolean }>(({ theme, $active }) => {
-  return css`
-    position: absolute;
-    inset-block: 0;
-    width: 0.0625rem;
-    background: ${theme.base.palette['primary-background']};
-    opacity: ${$active ? 0.7 : 0.32};
-    transform: translateX(-50%);
-  `;
-});
-
-StyledProgressMarker.defaultProps = defaultThemeProp;
+StyledProgressFraction.defaultProps = defaultThemeProp;
 
 export const StyledProgressFill = styled.div<{
   $complete: boolean;
@@ -238,8 +214,9 @@ export const StyledProgressFill = styled.div<{
       transition: none;
 
       /* translucent texture on the same tone color (not a moving sweep or a contrasting stripe) keeps this readable and consistent with the solid fill look */
-      background: ${$indeterminate
-        ? css`repeating-linear-gradient(
+      background: ${
+        $indeterminate
+          ? css`repeating-linear-gradient(
             135deg,
             rgb(255 255 255 / 18%) 25%,
             transparent 25%,
@@ -250,9 +227,16 @@ export const StyledProgressFill = styled.div<{
             transparent
           ),
             ${getToneColor($tone, theme)}`
-        : getToneColor($tone, theme)};
+          : getToneColor($tone, theme)
+      };
       background-size: ${$indeterminate ? '1rem 1rem' : 'auto'};
-      animation: ${$indeterminate ? css`${stripeDrift} 900ms linear infinite` : 'none'};
+      animation: ${
+        $indeterminate
+          ? css`
+              ${stripeDrift} 900ms linear infinite
+            `
+          : 'none'
+      };
 
       &::after {
         animation: none;

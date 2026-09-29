@@ -13,6 +13,30 @@ The data page can also drive the visual tone: if the record includes a valid `to
 
 Set `indeterminateOnly` to skip the data page and messaging service entirely and just show a never-ending progress animation — useful when work is happening but there's nothing to track it against.
 
+## Update flow
+
+The runtime messaging service owns the WebSocket connection. The progress bar subscribes to PCore and reads the latest data-page value only after the socket delivers a matching update.
+
+```mermaid
+sequenceDiagram
+	participant Backend
+	participant DataPage
+	participant Socket
+	participant PCore
+	participant ProgressBar
+	Backend->>DataPage: Store new progress
+	Backend->>Socket: Push update event
+	Socket->>PCore: Deliver socket message
+	PCore->>ProgressBar: Run matching subscription
+	ProgressBar->>PCore: Request current data page
+	PCore->>DataPage: Fetch progress data
+	DataPage-->>PCore: Return current progress
+	PCore-->>ProgressBar: Update value and maximum
+	ProgressBar->>ProgressBar: Render updated accessible state
+```
+
+For a case context, the subscription matches the `CASE` event for the current case. On a page without case context, it matches the `DATAPAGE_UPDATED` event for the configured data page.
+
 <Primary />
 
 ## Props

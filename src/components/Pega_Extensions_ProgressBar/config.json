@@ -111,8 +111,8 @@
             "visibility": "($this.indeterminateOnly = false)"
         },
         {
-            "name": "showMarkers",
-            "label": "Show milestone markers",
+            "name": "showFraction",
+            "label": "Show completed fraction",
             "format": "BOOLEAN",
             "defaultValue": true,
             "visibility": "($this.indeterminateOnly = false)"
@@ -176,7 +176,7 @@
         "tone": "accent",
         "size": "regular",
         "showValue": true,
-        "showMarkers": true
+        "showFraction": true
     },
     "infinityVersion": "26.1.1",
     "packageCosmosVersion": "9.25.0"
