@@ -56,7 +56,7 @@
             "name": "refreshIntervalSeconds",
             "label": "Refresh interval (seconds)",
             "format": "NUMBER",
-            "defaultValue": 5,
+            "defaultValue": 30,
             "visibility": "$this.updateStrategy == 'interval' && $this.indeterminateOnly == false"
         },
         {
@@ -198,7 +198,7 @@
         "label": "@L $this.label",
         "indeterminateOnly": false,
         "updateStrategy": "messaging",
-        "refreshIntervalSeconds": 5,
+        "refreshIntervalSeconds": 30,
         "valueProperty": "Value",
         "minProperty": "Min",
         "maxProperty": "Max",

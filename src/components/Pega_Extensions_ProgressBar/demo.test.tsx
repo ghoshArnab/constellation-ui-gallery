@@ -281,7 +281,7 @@ test('polls the data page on the configured interval and stops when unmounted', 
         label='Polled progress'
         dataPage='D_PolledProgress'
         updateStrategy='interval'
-        refreshIntervalSeconds={2}
+        refreshIntervalSeconds={10}
         getPConnect={getPConnect}
       />,
     );
@@ -289,7 +289,7 @@ test('polls the data page on the configured interval and stops when unmounted', 
     expect(getData).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      jest.advanceTimersByTime(4000);
+      jest.advanceTimersByTime(20000);
     });
     expect(getData).toHaveBeenCalledTimes(3);
 
@@ -314,7 +314,7 @@ test('shows each value a polling interval delivers', async () => {
     expect(progress).toHaveAttribute('aria-valuenow', '12');
 
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(10000);
     });
     expect(progress).toHaveAttribute('aria-valuenow', '27');
   } finally {

@@ -280,7 +280,7 @@ export const PollingInterval: Story = {
     ...configProps,
     label: 'Polled export progress',
     updateStrategy: 'interval',
-    refreshIntervalSeconds: 5,
+    refreshIntervalSeconds: 10,
     helperText: 'The data page is fetched every few seconds, whether or not anything changed.',
   },
 };

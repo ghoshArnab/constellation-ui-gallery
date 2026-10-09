@@ -10,7 +10,7 @@ import * as DemoStories from './demo.stories';
 | `updateStrategy`      | When the data page is fetched                                                                                                                       |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `messaging` (default) | On mount, then every time the PCore messaging service reports a matching update. Suited to jobs that push rapid updates, for example once a second. |
-| `interval`            | On mount, then every `refreshIntervalSeconds` seconds (default 5, minimum 1), whether or not anything changed.                                      |
+| `interval`            | On mount, then every `refreshIntervalSeconds` seconds (default 30, minimum 10), whether or not anything changed.                                    |
 | `onLoad`              | Once on mount. The value only changes when the page is reloaded.                                                                                    |
 
 With `messaging`, on mount the widget fetches `dataPage` via `PCore.getDataApiUtils().getData()` and subscribes to case updates with `PCore.getMessagingServiceManager().subscribe({ matcher: 'CASE', criteria: { caseId } }, ...)`. Every time the messaging service reports the case changed, the widget refetches the data page; it unsubscribes on unmount. With `interval`, the widget clears its timer on unmount and never subscribes. With `onLoad`, it neither subscribes nor polls. Until the first fetch resolves, the widget renders an indeterminate state.

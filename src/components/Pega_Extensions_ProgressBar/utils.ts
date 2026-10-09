@@ -6,8 +6,8 @@ export type ProgressUpdateStrategy = 'messaging' | 'interval' | 'onLoad';
 const progressTones: ProgressTone[] = ['accent', 'success', 'warning', 'danger'];
 const progressUpdateStrategies: ProgressUpdateStrategy[] = ['messaging', 'interval', 'onLoad'];
 
-export const DEFAULT_REFRESH_INTERVAL_SECONDS = 5;
-const MIN_REFRESH_INTERVAL_SECONDS = 1;
+export const DEFAULT_REFRESH_INTERVAL_SECONDS = 30;
+const MIN_REFRESH_INTERVAL_SECONDS = 10;
 
 export const isProgressTone = (value: unknown): value is ProgressTone => progressTones.includes(value as ProgressTone);
 

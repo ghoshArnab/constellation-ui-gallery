@@ -35,7 +35,7 @@ export interface PegaExtensionsProgressBarProps {
   dataPage?: string;
   /** How the progress value is refreshed: `messaging` on PCore messaging service pushes, `interval` on a timer, or `onLoad` once when the widget mounts. */
   updateStrategy?: ProgressUpdateStrategy;
-  /** Seconds between data page fetches when `updateStrategy` is `interval`. Values below 1 are raised to 1. */
+  /** Seconds between data page fetches when `updateStrategy` is `interval`. Values below 10 are raised to 10. */
   refreshIntervalSeconds?: number;
   /** Property in the data page response holding the current progress value. */
   valueProperty?: string;
