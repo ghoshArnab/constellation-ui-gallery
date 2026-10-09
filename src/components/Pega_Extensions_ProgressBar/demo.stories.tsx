@@ -103,6 +103,16 @@ const stubPCoreWithRapidUpdates = (steps: number[], args: StoryArgs, intervalMs 
   } as unknown as typeof PCore;
 };
 
+/* Serves the next value on every fetch, as a data page polled on a timer would */
+const stubPCoreWithPolling = (steps: number[], args: StoryArgs) => {
+  let step = 0;
+  stubPCore(() => {
+    const value = steps[Math.min(step, steps.length - 1)];
+    step += 1;
+    return Promise.resolve(createProgressDataPageResponse(args, value, 0, 100));
+  });
+};
+
 const StoryComponent = (args: StoryArgs) => {
   stubPCoreWithRapidUpdates(rapidProgressSteps, args);
   return renderProgressBar(args);
@@ -132,6 +142,31 @@ const meta = {
       if: {
         arg: 'indeterminateOnly',
         eq: false,
+      },
+    },
+    updateStrategy: {
+      options: ['messaging', 'interval', 'onLoad'],
+      labels: {
+        messaging: 'Push (messaging service)',
+        interval: 'Poll on an interval',
+        onLoad: 'Load once on page load',
+      },
+      control: {
+        type: 'select',
+      },
+      if: {
+        arg: 'indeterminateOnly',
+        eq: false,
+      },
+    },
+    refreshIntervalSeconds: {
+      control: {
+        type: 'number',
+        min: 1,
+      },
+      if: {
+        arg: 'updateStrategy',
+        eq: 'interval',
       },
     },
     valueProperty: {
@@ -236,6 +271,33 @@ export const Default: Story = {
   args: configProps,
 };
 
+export const PollingInterval: Story = {
+  render: (args) => {
+    stubPCoreWithPolling(rapidProgressSteps, args);
+    return renderProgressBar(args);
+  },
+  args: {
+    ...configProps,
+    label: 'Polled export progress',
+    updateStrategy: 'interval',
+    refreshIntervalSeconds: 5,
+    helperText: 'The data page is fetched every few seconds, whether or not anything changed.',
+  },
+};
+
+export const LoadOnce: Story = {
+  render: (args) => {
+    stubPCore(() => Promise.resolve(createProgressDataPageResponse(args, 64, 0, 100)));
+    return renderProgressBar(args);
+  },
+  args: {
+    ...configProps,
+    label: 'Report progress',
+    updateStrategy: 'onLoad',
+    helperText: 'Fetched once when the page opens; reload the page to see newer progress.',
+  },
+};
+
 export const Complete: Story = {
   render: (args) => {
     stubPCore(() => Promise.resolve(createProgressDataPageResponse(args, 100, 0, 100)));
@@ -264,19 +326,6 @@ export const AtRisk: Story = {
     tone: 'accent',
     size: 'large',
     helperText: 'Updates have slowed; the sync job may be stalled.',
-  },
-};
-
-export const Loading: Story = {
-  render: (args) => {
-    /* Never resolves, so the widget stays indeterminate until the messaging service delivers the first update */
-    stubPCore(() => new Promise(() => {}));
-    return renderProgressBar(args);
-  },
-  args: {
-    ...configProps,
-    label: 'Import job progress',
-    helperText: 'Waiting for the import job to report its first update.',
   },
 };
 

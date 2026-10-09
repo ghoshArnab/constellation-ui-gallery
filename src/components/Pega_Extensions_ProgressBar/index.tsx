@@ -14,21 +14,29 @@ import {
   StyledProgressValue,
 } from './styles';
 import {
+  DEFAULT_REFRESH_INTERVAL_SECONDS,
   getPercentage,
   getProgressStatus,
+  getRefreshIntervalMs,
   isProgressTone,
+  isProgressUpdateStrategy,
   normalizeProgress,
   type ProgressSize,
   type ProgressTone,
+  type ProgressUpdateStrategy,
 } from './utils';
 
 export interface PegaExtensionsProgressBarProps {
   /** Widget label. */
   label: string;
-  /** Shows a never-ending progress animation, skipping the data page and messaging service entirely. */
+  /** Shows a never-ending progress animation, skipping the data page and all refresh strategies entirely. */
   indeterminateOnly?: boolean;
-  /** Name of the data page providing the progress value. Refreshed only via the PCore messaging service. Ignored when `indeterminateOnly` is set. */
+  /** Name of the data page providing the progress value. Refreshed according to `updateStrategy`. Ignored when `indeterminateOnly` is set. */
   dataPage?: string;
+  /** How the progress value is refreshed: `messaging` on PCore messaging service pushes, `interval` on a timer, or `onLoad` once when the widget mounts. */
+  updateStrategy?: ProgressUpdateStrategy;
+  /** Seconds between data page fetches when `updateStrategy` is `interval`. Values below 1 are raised to 1. */
+  refreshIntervalSeconds?: number;
   /** Property in the data page response holding the current progress value. */
   valueProperty?: string;
   /** Property in the data page response holding the minimum progress value. */
@@ -57,6 +65,8 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
     label,
     indeterminateOnly = false,
     dataPage,
+    updateStrategy: updateStrategyProp = 'messaging',
+    refreshIntervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS,
     valueProperty = 'Value',
     minProperty = 'Min',
     maxProperty = 'Max',
@@ -95,10 +105,25 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
       .catch(() => {});
   }, [indeterminateOnly, dataPage, valueProperty, minProperty, maxProperty, toneProperty, getPConnect]);
 
-  /* The PCore messaging service is the only trigger for refreshing this widget's progress. */
+  const updateStrategy = isProgressUpdateStrategy(updateStrategyProp) ? updateStrategyProp : 'messaging';
+
   useEffect(() => {
     if (indeterminateOnly || !dataPage) return undefined;
-    /* On a case, listen for that case's updates; on a page (no case context), listen for the data page itself */
+
+    if (updateStrategy === 'onLoad') {
+      loadFromDataPage();
+      return undefined;
+    }
+
+    if (updateStrategy === 'interval') {
+      loadFromDataPage();
+      const intervalId = window.setInterval(loadFromDataPage, getRefreshIntervalMs(refreshIntervalSeconds));
+      return () => {
+        window.clearInterval(intervalId);
+      };
+    }
+
+    /* Messaging: on a case, listen for that case's updates; on a page (no case context), listen for the data page itself */
     let caseID: string | undefined;
     try {
       caseID = getPConnect().getValue(PCore.getConstants().CASE_INFO.CASE_INFO_ID);
@@ -117,7 +142,7 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
     return () => {
       PCore.getMessagingServiceManager().unsubscribe(subscriptionId);
     };
-  }, [indeterminateOnly, dataPage, loadFromDataPage, getPConnect]);
+  }, [indeterminateOnly, dataPage, updateStrategy, refreshIntervalSeconds, loadFromDataPage, getPConnect]);
 
   const indeterminate = indeterminateOnly || value === undefined;
   const effectiveTone = dataPageTone ?? tone;

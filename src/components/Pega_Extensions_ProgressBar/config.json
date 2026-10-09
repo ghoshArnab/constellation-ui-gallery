@@ -1,7 +1,7 @@
 {
     "name": "Pega_Extensions_ProgressBar",
     "label": "Progress Bar",
-    "description": "Accessible progress widget for jobs that push rapid updates (for example once a second); it reads its value from a data page and refreshes only in response to PCore messaging service updates, never on a timer or by polling.",
+    "description": "Accessible progress widget for jobs that report progress from a data page. Choose how it refreshes: on PCore messaging service pushes (default), on a polling interval, or once when the page loads.",
     "organization": "Pega",
     "version": "5.0.4",
     "library": "Extensions",
@@ -30,6 +30,34 @@
             "label": "Data page name",
             "format": "TEXT",
             "visibility": "($this.indeterminateOnly = false)"
+        },
+        {
+            "name": "updateStrategy",
+            "label": "Update strategy",
+            "format": "SELECT",
+            "defaultValue": "messaging",
+            "source": [
+                {
+                    "key": "messaging",
+                    "value": "Push (PCore messaging service)"
+                },
+                {
+                    "key": "interval",
+                    "value": "Poll on an interval"
+                },
+                {
+                    "key": "onLoad",
+                    "value": "Load once on page load"
+                }
+            ],
+            "visibility": "($this.indeterminateOnly = false)"
+        },
+        {
+            "name": "refreshIntervalSeconds",
+            "label": "Refresh interval (seconds)",
+            "format": "NUMBER",
+            "defaultValue": 5,
+            "visibility": "$this.updateStrategy == 'interval' && $this.indeterminateOnly == false"
         },
         {
             "name": "valueProperty",
@@ -169,6 +197,8 @@
     "defaultConfig": {
         "label": "@L $this.label",
         "indeterminateOnly": false,
+        "updateStrategy": "messaging",
+        "refreshIntervalSeconds": 5,
         "valueProperty": "Value",
         "minProperty": "Min",
         "maxProperty": "Max",

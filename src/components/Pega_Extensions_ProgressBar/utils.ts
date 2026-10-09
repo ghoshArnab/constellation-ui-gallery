@@ -1,10 +1,23 @@
 export type ProgressTone = 'accent' | 'success' | 'warning' | 'danger';
 export type ProgressSize = 'compact' | 'regular' | 'large';
+/** `messaging` pushes via the PCore messaging service, `interval` polls the data page on a timer, `onLoad` fetches once on mount. */
+export type ProgressUpdateStrategy = 'messaging' | 'interval' | 'onLoad';
 
 const progressTones: ProgressTone[] = ['accent', 'success', 'warning', 'danger'];
+const progressUpdateStrategies: ProgressUpdateStrategy[] = ['messaging', 'interval', 'onLoad'];
 
-export const isProgressTone = (value: unknown): value is ProgressTone =>
-  progressTones.includes(value as ProgressTone);
+export const DEFAULT_REFRESH_INTERVAL_SECONDS = 5;
+const MIN_REFRESH_INTERVAL_SECONDS = 1;
+
+export const isProgressTone = (value: unknown): value is ProgressTone => progressTones.includes(value as ProgressTone);
+
+export const isProgressUpdateStrategy = (value: unknown): value is ProgressUpdateStrategy =>
+  progressUpdateStrategies.includes(value as ProgressUpdateStrategy);
+
+export const getRefreshIntervalMs = (seconds: number | undefined): number => {
+  const safeSeconds = Number.isFinite(seconds) ? (seconds as number) : DEFAULT_REFRESH_INTERVAL_SECONDS;
+  return Math.max(MIN_REFRESH_INTERVAL_SECONDS, safeSeconds) * 1000;
+};
 
 export const normalizeProgress = (value: number, min: number, max: number): number => {
   if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {

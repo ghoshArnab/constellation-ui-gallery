@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import * as DemoStories from './demo.stories';
 import { PegaExtensionsProgressBar } from './index';
 
-const { Default, Complete, AtRisk, Loading, Continuous } = composeStories(DemoStories);
+const { Default, Complete, AtRisk, Continuous, PollingInterval } = composeStories(DemoStories);
 
 test('loads its first value from the data page and renders accessible values', async () => {
   render(<Default />);
@@ -67,7 +67,25 @@ test('renders an at-risk state', async () => {
 });
 
 test('stays indeterminate until the data page resolves', () => {
-  render(<Loading />);
+  window.PCore = {
+    getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
+    getDataApiUtils: () => ({ getData: () => new Promise(() => {}) }),
+    getMessagingServiceManager: () => ({
+      subscribe: () => 'subscription-id',
+      unsubscribe: () => {},
+    }),
+  } as unknown as typeof PCore;
+
+  const getPConnect = () =>
+    ({
+      getValue: () => 'WORK-1',
+      getLocalizedValue: (text: string) => text,
+      getContextName: () => 'primary',
+    }) as unknown as typeof PConnect;
+
+  render(
+    <PegaExtensionsProgressBar label='Import job progress' dataPage='D_ImportJobProgress' getPConnect={getPConnect} />,
+  );
 
   const progress = screen.getByRole('progressbar', { name: 'Import job progress' });
   expect(progress).not.toHaveAttribute('aria-valuenow');
@@ -199,6 +217,109 @@ test('subscribes to and unsubscribes from the PCore messaging service', () => {
   unmount();
 
   expect(unsubscribe).toHaveBeenCalledWith('subscription-id');
+});
+
+test('loads once and never subscribes when the update strategy is onLoad', async () => {
+  jest.useFakeTimers();
+  try {
+    const subscribe = jest.fn(() => 'subscription-id');
+    const getData = jest.fn(() => Promise.resolve({ data: { data: [{ Value: 35, Max: 100 }] } }));
+    window.PCore = {
+      getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
+      getDataApiUtils: () => ({ getData }),
+      getMessagingServiceManager: () => ({ subscribe, unsubscribe: () => {} }),
+    } as unknown as typeof PCore;
+
+    const getPConnect = () =>
+      ({
+        getValue: () => 'WORK-1',
+        getLocalizedValue: (text: string) => text,
+        getContextName: () => 'primary',
+      }) as unknown as typeof PConnect;
+
+    render(
+      <PegaExtensionsProgressBar
+        label='Report progress'
+        dataPage='D_ReportProgress'
+        updateStrategy='onLoad'
+        getPConnect={getPConnect}
+      />,
+    );
+
+    expect(await screen.findByText('35%')).toBeVisible();
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    expect(getData).toHaveBeenCalledTimes(1);
+    expect(subscribe).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('polls the data page on the configured interval and stops when unmounted', async () => {
+  jest.useFakeTimers();
+  try {
+    const subscribe = jest.fn(() => 'subscription-id');
+    const getData = jest.fn(() => Promise.resolve({ data: { data: [{ Value: 10, Max: 100 }] } }));
+    window.PCore = {
+      getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
+      getDataApiUtils: () => ({ getData }),
+      getMessagingServiceManager: () => ({ subscribe, unsubscribe: () => {} }),
+    } as unknown as typeof PCore;
+
+    const getPConnect = () =>
+      ({
+        getValue: () => 'WORK-1',
+        getLocalizedValue: (text: string) => text,
+        getContextName: () => 'primary',
+      }) as unknown as typeof PConnect;
+
+    const { unmount } = render(
+      <PegaExtensionsProgressBar
+        label='Polled progress'
+        dataPage='D_PolledProgress'
+        updateStrategy='interval'
+        refreshIntervalSeconds={2}
+        getPConnect={getPConnect}
+      />,
+    );
+
+    expect(getData).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
+    expect(getData).toHaveBeenCalledTimes(3);
+
+    unmount();
+    await act(async () => {
+      jest.advanceTimersByTime(10000);
+    });
+    expect(getData).toHaveBeenCalledTimes(3);
+    expect(subscribe).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('shows each value a polling interval delivers', async () => {
+  jest.useFakeTimers();
+  try {
+    render(<PollingInterval />);
+
+    const progress = await screen.findByRole('progressbar', { name: 'Polled export progress' });
+    expect(await screen.findByText('12%')).toBeVisible();
+    expect(progress).toHaveAttribute('aria-valuenow', '12');
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(progress).toHaveAttribute('aria-valuenow', '27');
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('subscribes to data page updates when used on a page without a case context', () => {
