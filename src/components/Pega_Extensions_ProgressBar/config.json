@@ -1,9 +1,9 @@
 {
     "name": "Pega_Extensions_ProgressBar",
     "label": "Progress Bar",
-    "description": "Accessible progress widget for jobs that report progress from a data page. Choose how it refreshes: on PCore messaging service pushes (default), on a polling interval, or once when the page loads.",
+    "description": "Accessible progress widget for jobs that report progress from a data page. The data page is fetched on each PCore messaging service update (default), on a polling interval, or once on page load.",
     "organization": "Pega",
-    "version": "5.0.4",
+    "version": "5.0.6",
     "library": "Extensions",
     "allowedApplications": [],
     "componentKey": "Pega_Extensions_ProgressBar",
@@ -54,7 +54,7 @@
         },
         {
             "name": "refreshIntervalSeconds",
-            "label": "Refresh interval (seconds)",
+            "label": "Refresh interval (seconds, minimum 10)",
             "format": "NUMBER",
             "defaultValue": 30,
             "visibility": "$this.updateStrategy == 'interval' && $this.indeterminateOnly == false"
@@ -133,7 +133,7 @@
         },
         {
             "name": "showValue",
-            "label": "Show value",
+            "label": "Show status and percentage",
             "format": "BOOLEAN",
             "defaultValue": true,
             "visibility": "($this.indeterminateOnly = false)"
@@ -189,7 +189,7 @@
         },
         {
             "format": "LABEL",
-            "label": "Pega_Extensions 5.0.4",
+            "label": "Pega_Extensions 5.0.6, Wed Oct 21 2026, 27.1.0-SNAPSHOT",
             "name": "PegaAboutData",
             "variant": "primary"
         }
@@ -208,6 +208,7 @@
         "showValue": true,
         "showFraction": true
     },
-    "infinityVersion": "26.1.1",
-    "packageCosmosVersion": "9.25.0"
+    "infinityVersion": "27.1.0-SNAPSHOT",
+    "packageCosmosVersion": "9.25.1-11",
+    "buildDate": "2026-10-21T11:42:21.953Z"
 }

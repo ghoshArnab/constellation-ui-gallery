@@ -5,53 +5,35 @@ import * as DemoStories from './demo.stories';
 
 # Progress Bar
 
-`Pega_Extensions_ProgressBar` is a theme-aware, accessible progress widget built for jobs that report progress from a data page. It has no bound property of its own — it reads its `value`/`max` from the configured `dataPage`, and the `updateStrategy` decides when that data page is fetched again.
+`Pega_Extensions_ProgressBar` is a theme-aware, accessible progress widget for jobs that report their progress through a data page. It has no bound property of its own: it reads the current value, minimum, maximum, and optional tone from the configured `dataPage`, and `updateStrategy` decides when that data page is fetched.
 
-| `updateStrategy`      | When the data page is fetched                                                                                                                       |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `messaging` (default) | On mount, then every time the PCore messaging service reports a matching update. Suited to jobs that push rapid updates, for example once a second. |
-| `interval`            | On mount, then every `refreshIntervalSeconds` seconds (default 30, minimum 10), whether or not anything changed.                                    |
-| `onLoad`              | Once on mount. The value only changes when the page is reloaded.                                                                                    |
+| `updateStrategy`      | When the data page is fetched                                                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `messaging` (default) | On mount, then each time the PCore messaging service reports a matching update. Suited to jobs that push rapid updates, such as once a second. |
+| `interval`            | On mount, then every `refreshIntervalSeconds` seconds (default 30, minimum 10), whether or not anything changed.                               |
+| `onLoad`              | Once on mount. The value changes only when the page is reloaded.                                                                               |
 
-With `messaging`, on mount the widget fetches `dataPage` via `PCore.getDataApiUtils().getData()` and subscribes to case updates with `PCore.getMessagingServiceManager().subscribe({ matcher: 'CASE', criteria: { caseId } }, ...)`. Every time the messaging service reports the case changed, the widget refetches the data page; it unsubscribes on unmount. With `interval`, the widget clears its timer on unmount and never subscribes. With `onLoad`, it neither subscribes nor polls. Until the first fetch resolves, the widget renders an indeterminate state.
+Until the first fetch succeeds, the widget shows an indeterminate state. If a fetch fails, the widget keeps its last known value.
 
-The data page can also drive the visual tone: if the record includes a valid `toneProperty` value (`accent`, `success`, `warning`, or `danger`), it overrides the static `tone` prop — useful for flipping to `danger` the moment a job reports a failure.
+The data page can also drive the visual tone. If the record has a valid `toneProperty` value (`accent`, `success`, `warning`, or `danger`), it overrides the `tone` prop. This lets a job switch the bar to `danger` as soon as it reports a failure.
 
-Set `indeterminateOnly` to skip the data page and all refresh strategies entirely and just show a never-ending progress animation — useful when work is happening but there's nothing to track it against.
+Set `indeterminateOnly` to skip the data page and every refresh strategy and show a continuous progress animation. Use it when work is in progress but there is nothing to measure it against.
 
 ## Update flow
 
 ### Push (`messaging`)
 
-The runtime messaging service owns the WebSocket connection. The progress bar subscribes to PCore and reads the latest data-page value only after the socket delivers a matching update.
+The runtime messaging service owns the WebSocket connection. On mount, the progress bar fetches the data page and subscribes through PCore. After that, it fetches the data page again each time the socket delivers a matching update, and it unsubscribes on unmount. If the messaging service is unavailable, the widget falls back to polling every `refreshIntervalSeconds`.
 
-```mermaid
-sequenceDiagram
-	participant Backend
-	participant DataPage
-	participant Socket
-	participant PCore
-	participant ProgressBar
-	Backend->>DataPage: Store new progress
-	Backend->>Socket: Push update event
-	Socket->>PCore: Deliver socket message
-	PCore->>ProgressBar: Run matching subscription
-	ProgressBar->>PCore: Request current data page
-	PCore->>DataPage: Fetch progress data
-	DataPage-->>PCore: Return current progress
-	PCore-->>ProgressBar: Update value and maximum
-	ProgressBar->>ProgressBar: Render updated accessible state
-```
-
-For a case context, the subscription matches the `CASE` event for the current case. On a page without case context, it matches the `DATAPAGE_UPDATED` event for the configured data page.
+In a case context, the subscription matches the `CASE` event for the current case. On a page without a case context, it matches the `DATAPAGE_UPDATED` event for the configured data page.
 
 ### Polling (`interval`)
 
-A timer fetches the data page every `refreshIntervalSeconds`. Use it when the backend cannot push updates or when a slower refresh is acceptable. The timer is cleared on unmount.
+A timer fetches the data page every `refreshIntervalSeconds` and never subscribes to messaging. Use it when the backend cannot push updates or a slower refresh is acceptable. The timer is cleared on unmount.
 
 ### Load once (`onLoad`)
 
-The data page is fetched once on mount, with no timer and no messaging subscription. Use it for values that rarely change during a page session.
+The data page is fetched once on mount, with no timer and no messaging subscription. Use it for values that rarely change while the page is open.
 
 <Primary />
 

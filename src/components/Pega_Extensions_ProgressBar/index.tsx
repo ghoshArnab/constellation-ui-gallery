@@ -27,35 +27,35 @@ import {
 } from './utils';
 
 export interface PegaExtensionsProgressBarProps {
-  /** Widget label. */
+  /** Label shown above the progress bar. */
   label: string;
-  /** Shows a never-ending progress animation, skipping the data page and all refresh strategies entirely. */
+  /** Shows a never-ending progress animation and skips the data page and all refresh strategies. */
   indeterminateOnly?: boolean;
-  /** Name of the data page providing the progress value. Refreshed according to `updateStrategy`. Ignored when `indeterminateOnly` is set. */
+  /** Name of the data page that returns the progress record (the first record if it returns a list). Fetched according to `updateStrategy`. Ignored when `indeterminateOnly` is set. */
   dataPage?: string;
-  /** How the progress value is refreshed: `messaging` on PCore messaging service pushes, `interval` on a timer, or `onLoad` once when the widget mounts. */
+  /** When the data page is fetched: `messaging` on each PCore messaging service update, `interval` on a timer, or `onLoad` once on mount. */
   updateStrategy?: ProgressUpdateStrategy;
-  /** Seconds between data page fetches when `updateStrategy` is `interval`. Values below 10 are raised to 10. */
+  /** Seconds between data page fetches when `updateStrategy` is `interval`. Defaults to 30; values below 10 are raised to 10. */
   refreshIntervalSeconds?: number;
-  /** Property in the data page response holding the current progress value. */
+  /** Data page property holding the current progress value. */
   valueProperty?: string;
-  /** Property in the data page response holding the minimum progress value. */
+  /** Data page property holding the minimum progress value. Defaults to 0 when missing. */
   minProperty?: string;
-  /** Property in the data page response holding the maximum progress value. */
+  /** Data page property holding the maximum progress value. Defaults to the minimum plus 100 when missing or not greater than the minimum. */
   maxProperty?: string;
-  /** Property in the data page response holding the progress tone. Overrides the static `tone` prop when valid. */
+  /** Data page property holding the progress tone (`accent`, `success`, `warning` or `danger`). A valid value overrides the `tone` prop. */
   toneProperty?: string;
   /** Supporting text shown below the label. */
   helperText?: string;
   /** Test identifier. */
   testId?: string;
-  /** Visual tone for the progress fill. */
+  /** Default tone of the progress fill, used until or unless the data page provides one. */
   tone?: ProgressTone;
-  /** Track height. */
+  /** Height of the progress track. */
   size?: ProgressSize;
-  /** Shows the percentage or in-progress label. */
+  /** Shows the status label and the percentage above the bar. Hidden while the progress is indeterminate. */
   showValue?: boolean;
-  /** Shows the completed fraction below the progress bar. */
+  /** Shows the completed fraction (for example `20 of 80 completed`) below the bar. Hidden while the progress is indeterminate. */
   showFraction?: boolean;
   getPConnect: () => typeof PConnect;
 }
@@ -99,11 +99,15 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
           if (record[valueProperty] !== undefined) setValue(Number(record[valueProperty]));
           if (record[minProperty] !== undefined) setMin(Number(record[minProperty]));
           if (record[maxProperty] !== undefined) setMax(Number(record[maxProperty]));
-          if (isProgressTone(record[toneProperty])) setDataPageTone(record[toneProperty]);
+          setDataPageTone(isProgressTone(record[toneProperty]) ? record[toneProperty] : undefined);
         }
       })
       .catch(() => {});
   }, [indeterminateOnly, dataPage, valueProperty, minProperty, maxProperty, toneProperty, getPConnect]);
+
+  useEffect(() => {
+    setDataPageTone(undefined);
+  }, [dataPage, toneProperty, indeterminateOnly]);
 
   const updateStrategy = isProgressUpdateStrategy(updateStrategyProp) ? updateStrategyProp : 'messaging';
 
@@ -115,13 +119,15 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
       return undefined;
     }
 
-    if (updateStrategy === 'interval') {
+    const startPolling = () => {
       loadFromDataPage();
       const intervalId = window.setInterval(loadFromDataPage, getRefreshIntervalMs(refreshIntervalSeconds));
       return () => {
         window.clearInterval(intervalId);
       };
-    }
+    };
+
+    if (updateStrategy === 'interval') return startPolling();
 
     /* Messaging: on a case, listen for that case's updates; on a page (no case context), listen for the data page itself */
     let caseID: string | undefined;
@@ -133,14 +139,25 @@ export function PegaExtensionsProgressBar(props: PegaExtensionsProgressBarProps)
     const filter: { matcher: string; criteria: Record<string, string> } = caseID
       ? { matcher: 'CASE', criteria: { caseId: caseID } }
       : { matcher: 'DATAPAGE_UPDATED', criteria: { datapage: dataPage } };
-    const subscriptionId = PCore.getMessagingServiceManager().subscribe(
-      filter,
-      loadFromDataPage,
-      getPConnect().getContextName(),
-    );
+
+    let subscriptionId: string;
+    try {
+      subscriptionId = PCore.getMessagingServiceManager().subscribe(
+        filter,
+        loadFromDataPage,
+        getPConnect().getContextName(),
+      );
+    } catch {
+      /* Messaging service unavailable: fall back to polling */
+      return startPolling();
+    }
     loadFromDataPage();
     return () => {
-      PCore.getMessagingServiceManager().unsubscribe(subscriptionId);
+      try {
+        PCore.getMessagingServiceManager().unsubscribe(subscriptionId);
+      } catch {
+        /* Messaging service already gone */
+      }
     };
   }, [indeterminateOnly, dataPage, updateStrategy, refreshIntervalSeconds, loadFromDataPage, getPConnect]);
 

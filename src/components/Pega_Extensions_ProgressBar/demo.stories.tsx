@@ -147,7 +147,7 @@ const meta = {
     updateStrategy: {
       options: ['messaging', 'interval', 'onLoad'],
       labels: {
-        messaging: 'Push (messaging service)',
+        messaging: 'Push (PCore messaging service)',
         interval: 'Poll on an interval',
         onLoad: 'Load once on page load',
       },
@@ -162,7 +162,7 @@ const meta = {
     refreshIntervalSeconds: {
       control: {
         type: 'number',
-        min: 1,
+        min: 10,
       },
       if: {
         arg: 'updateStrategy',
@@ -320,7 +320,7 @@ export const AtRisk: Story = {
     ...configProps,
     label: 'Sync job progress',
     valueProperty: 'Completed',
-    minProperty: 'StartedAt',
+    minProperty: 'Start',
     maxProperty: 'Total',
     toneProperty: 'Status',
     tone: 'accent',

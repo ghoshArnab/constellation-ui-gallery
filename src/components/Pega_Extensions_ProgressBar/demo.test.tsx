@@ -63,7 +63,7 @@ test('renders an at-risk state', async () => {
   expect(progress).toHaveAttribute('aria-valuemax', '100');
   expect(progress).toHaveAttribute('aria-valuenow', '42');
   expect(screen.getByText('22 of 80 completed')).toBeVisible();
-  expect(screen.getByText('In review')).toBeVisible();
+  expect(screen.getByText('At risk')).toBeVisible();
 });
 
 test('stays indeterminate until the data page resolves', () => {
@@ -183,6 +183,42 @@ test('ignores an invalid tone reported by the data page', async () => {
   expect(await screen.findByText('On track')).toBeVisible();
 });
 
+test('falls back to the static tone when the tone property no longer resolves', async () => {
+  window.PCore = {
+    getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
+    getDataApiUtils: () => ({
+      getData: () => Promise.resolve({ data: { data: [{ Value: 30, Max: 100, Tone: 'danger' }] } }),
+    }),
+    getMessagingServiceManager: () => ({
+      subscribe: () => 'subscription-id',
+      unsubscribe: () => {},
+    }),
+  } as unknown as typeof PCore;
+
+  const getPConnect = () =>
+    ({
+      getValue: () => 'WORK-1',
+      getLocalizedValue: (text: string) => text,
+      getContextName: () => 'primary',
+    }) as unknown as typeof PConnect;
+
+  const { rerender } = render(
+    <PegaExtensionsProgressBar label='Job' tone='accent' dataPage='D_Job' getPConnect={getPConnect} />,
+  );
+  expect(await screen.findByText('Needs attention')).toBeVisible();
+
+  rerender(
+    <PegaExtensionsProgressBar
+      label='Job'
+      tone='accent'
+      toneProperty='MissingField'
+      dataPage='D_Job'
+      getPConnect={getPConnect}
+    />,
+  );
+  expect(await screen.findByText('On track')).toBeVisible();
+});
+
 test('subscribes to and unsubscribes from the PCore messaging service', () => {
   const subscribe = jest.fn(() => 'subscription-id');
   const unsubscribe = jest.fn();
@@ -217,6 +253,45 @@ test('subscribes to and unsubscribes from the PCore messaging service', () => {
   unmount();
 
   expect(unsubscribe).toHaveBeenCalledWith('subscription-id');
+});
+
+test('falls back to polling when the messaging service is unavailable', () => {
+  jest.useFakeTimers();
+  try {
+    const getData = jest.fn(() => Promise.resolve({ data: { data: [{ Value: 10, Max: 100 }] } }));
+    window.PCore = {
+      getConstants: () => ({ CASE_INFO: { CASE_INFO_ID: 'caseInfoID' } }),
+      getDataApiUtils: () => ({ getData }),
+      getMessagingServiceManager: () => {
+        throw new Error('Messaging service not initialized');
+      },
+    } as unknown as typeof PCore;
+
+    const getPConnect = () =>
+      ({
+        getValue: () => 'WORK-1',
+        getLocalizedValue: (text: string) => text,
+        getContextName: () => 'primary',
+      }) as unknown as typeof PConnect;
+
+    const { unmount } = render(
+      <PegaExtensionsProgressBar label='Export progress' dataPage='D_ExportJobProgress' getPConnect={getPConnect} />,
+    );
+
+    expect(getData).toHaveBeenCalledTimes(1);
+    act(() => {
+      jest.advanceTimersByTime(30000);
+    });
+    expect(getData).toHaveBeenCalledTimes(2);
+
+    unmount();
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(getData).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('loads once and never subscribes when the update strategy is onLoad', async () => {

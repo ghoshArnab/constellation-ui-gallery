@@ -45,7 +45,7 @@ export const getProgressStatus = (percentage: number, tone: ProgressTone): strin
   }
 
   if (tone === 'warning') {
-    return 'In review';
+    return 'At risk';
   }
 
   return 'On track';
