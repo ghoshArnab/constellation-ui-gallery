@@ -3,7 +3,7 @@
     "label": "Meter",
     "description": "Meter",
     "organization": "Pega",
-    "version": "5.0.4",
+    "version": "5.0.6",
     "library": "Extensions",
     "allowedApplications": [],
     "componentKey": "Pega_Extensions_Meter",
@@ -77,7 +77,7 @@
         },
         {
             "format": "LABEL",
-            "label": "Pega_Extensions 5.0.4, Mon Sep 14 2026, 26.1.0-103357",
+            "label": "Pega_Extensions 5.0.6, Fri Oct 16 2026, 26.1.1-105720",
             "name": "PegaAboutData",
             "variant": "primary"
         }
@@ -86,7 +86,7 @@
         "label": "@L $this.label",
         "detailFVLItem": true
     },
-    "buildDate": "2026-09-14T17:32:42.679Z",
-    "infinityVersion": "26.1.0-103357",
-    "packageCosmosVersion": "9.25.0"
+    "buildDate": "2026-10-16T18:11:40.070Z",
+    "infinityVersion": "26.1.1-105720",
+    "packageCosmosVersion": "9.25.1-11"
 }
